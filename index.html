@@ -390,6 +390,36 @@
 
         .highlight { background: #fef08a; border-radius: 3px; padding: 0 2px; }
 
+        /* ─── Photo thumbnail ─── */
+        .pkg-card-body { display: flex; gap: 12px; }
+        .pkg-card-info { flex: 1; min-width: 0; }
+        .pkg-thumb {
+            flex-shrink: 0; width: 56px; height: 56px; border-radius: 10px;
+            object-fit: cover; border: 1px solid var(--border); cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .pkg-thumb:active { opacity: 0.7; }
+
+        /* ─── Lightbox ─── */
+        .lightbox {
+            display: none; position: fixed; inset: 0; z-index: 2000;
+            background: rgba(0,0,0,0.9); justify-content: center; align-items: center;
+            padding: 20px; cursor: pointer;
+        }
+        .lightbox.active { display: flex; }
+        .lightbox img {
+            max-width: 100%; max-height: 90vh; max-height: 90dvh;
+            border-radius: 12px; object-fit: contain;
+        }
+        .lightbox-close {
+            position: absolute; top: 16px; right: 16px;
+            top: calc(16px + env(safe-area-inset-top, 0px));
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,255,255,0.15); border: none;
+            color: white; font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+
         /* ─── iPad / Desktop ─── */
         @media (min-width: 768px) {
             body { padding-bottom: 0; }
@@ -569,6 +599,10 @@
     </div>
 </div>
 
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <img id="lightboxImg" src="" alt="รูปพัสดุ">
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -577,34 +611,34 @@ const TRACK_BASE = 'https://victorbart01.github.io/Seaglassy-mail/track.html';
 
 // ─── Initial data ───
 const initialData = [
-    { id:1, date:"2026-03-24", carrier:"SPX", tracking:"TH06424B198243", name:"สุภัทพล", phone:"", address:"333/381 หมู่บ้านกิตตินคร ม.5 ซ.บาลพลี พัฒนา ก.เทพารักษ์ ต.บางเพรียง อ.บางบ่อ สมุทรปราการ 10560", status:"sent", notes:"IMG_9941" },
-    { id:2, date:"2026-03-24", carrier:"SPX", tracking:"TH06789380S903", name:"ออม", phone:"082-932-4229", address:"557/702 คอนโดแมเนอร์-สนามบินน้ำ ถ.สนามบินน้ำ ต.บางกระสอ อ.เมืองนนทบุรี นนทบุรี 11000", status:"sent", notes:"IMG_9942" },
-    { id:3, date:"2026-03-24", carrier:"SPX", tracking:"TH06865798S823", name:"ชูจีดา", phone:"", address:"หอพัก U-house บางนา ห้อง 419 เลขที่ 45 ม.7 ซ.มิณสนา ต.บางฉลอง อ.บางพลี สมุทรปราการ 10540", status:"sent", notes:"IMG_9944" },
-    { id:4, date:"2026-03-24", carrier:"SPX", tracking:"TH06844282I402", name:"วิภาดี", phone:"", address:"52/162 หอพักภาณิศาเรสสิเด้น 2 ถ.เอกทักษิณ (ห้อง45/P.2) ต.หลักหก อ.เมืองปทุมธานี ปทุมธานี 12000", status:"sent", notes:"IMG_9945" },
-    { id:5, date:"2026-03-24", carrier:"SPX", tracking:"TH06244B794753", name:"ชนณี", phone:"0898076087", address:"20/400 แกรนด์คาแนล ประชาชื่น ต.บางตลาด อ.ปากเกร็ด นนทบุรี 11120", status:"sent", notes:"IMG_9946" },
-    { id:6, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779035", name:"กัญญารีร์ ม้องมุกข์", phone:"0986698651", address:"122/17 ม.1 ถ.วัดโพธิ์-บางใหญ่ มะขามเตี้ย เมือง สุราษฎร์ธานี 84000", status:"sent", notes:"KUL069" },
-    { id:7, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779005", name:"อรีศรา บาโจ", phone:"0985043407", address:"52/23 หมู่1 ซ.อาปา ม.โป่ง บางละมุง ชลบุรี 20150", status:"sent", notes:"KMK152" },
-    { id:8, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778959", name:"ปลายฟ้า สีหาคม", phone:"0903196609", address:"95 ม.4 วานรนิวาส วานรนิวาส สกลนคร 47120", status:"sent", notes:"WNV013" },
-    { id:9, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778975", name:"กมลศักดิ์ณ์ พิพัฒน์", phone:"0933857986", address:"102/184 ห้อง304 หอพักสีฟ้า บ้านฉาย ม.10 ทุ่งสุขลา ศรีราชา ชลบุรี 20230", status:"sent", notes:"WLT003" },
-    { id:10, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779054", name:"พาดิน", phone:"0980471563", address:"หอพักนักศึกษา อาคาร 7 ม.สงขลาครินทร์ คอหงส์ หาดใหญ่ สงขลา 90110", status:"sent", notes:"PSU001" },
-    { id:11, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779058", name:"วราลี พัฒนสิน", phone:"0979959859", address:"16/279 ม.8 หนองปลาไหล บางละมุง ชลบุรี 20150", status:"sent", notes:"PTY056" },
-    { id:12, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779015", name:"คุณสกร", phone:"0985691178", address:"บ้านพักอาจารย์วิทยาลัยเทคนิค 502 ม.11 ขามใหญ่ เมืองอุบลราชธานี อุบลราชธานี 34000", status:"sent", notes:"UBP002" },
-    { id:13, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779068", name:"พิมพ์นรา", phone:"0935096542", address:"177/8 รักษ์ไทย์ ถ.ประชาอินดี หาดใหญ่ สงขลา 90110", status:"sent", notes:"RYD003" },
-    { id:14, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779027", name:"ณัฐธิดา", phone:"0624397773", address:"1/347 ตึก 5 The North Park Condo ถ.ลงหาดบางแสน แสนสุข เมืองชลบุรี ชลบุรี 20130", status:"sent", notes:"AMA051" },
-    { id:15, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778992", name:"JJ", phone:"0930635672", address:"Hug Academy เลขที่ 1/6 ถ.อำนาม ศรีภูมิ เมืองเชียงใหม่ เชียงใหม่ 50200", status:"sent", notes:"SUT068" },
-    { id:16, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778984", name:"จิตรวิสัย ชุมพล", phone:"0619191662", address:"19/26 ถน.5 สี่แยก อรัญประเทศ อรัญประเทศ สระแก้ว 27120", status:"sent", notes:"ARR034" },
-    { id:17, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779043", name:"ชัยนาม ไทยบันลือ", phone:"0835768833", address:"ม.9 วิสาหกรค แม่สาย เชียงราย 57130", status:"sent", notes:"MMS106" },
-    { id:18, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778955", name:"คุณใหม่", phone:"0915552655", address:"104 มบ.บ้านถ้ำพัฒนา ม.1 ซอย 1/1 โป่งงาม แม่สาย เชียงราย 57130", status:"sent", notes:"MMS021" },
-    { id:19, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778998", name:"พิเก็ม", phone:"0621584427", address:"หอพักสานฝัน อพาร์ทเม้น 249 ม.15 ยามเรียง กันทรวิชัย มหาสารคาม 44150", status:"sent", notes:"KTC007" },
-    { id:20, date:"2026-03-24", carrier:"J&T", tracking:"864607747975", name:"นางสาวอังคณา คิด", phone:"0903827999", address:"53/175 หมู่บ้านสกาวิตน์ ซ.รามคำแหง บึงกุ่ม กรุงเทพฯ 10510", status:"sent", notes:"" },
-    { id:21, date:"2026-03-24", carrier:"J&T", tracking:"864610884340", name:"คนสาวร สา", phone:"0875523444", address:"5/36 ทุกกุมาลี#1 ซอยเพชรบุรี11 ถนนเพชรบุรี ราชเทวี กรุงเทพฯ 10400", status:"sent", notes:"" },
-    { id:22, date:"2026-03-24", carrier:"J&T", tracking:"864602667740", name:"คุณเอลีค", phone:"0979246342", address:"144/464 สาทร เจริญนคร บางลำภูล่าง เขตคลองสาน กรุงเทพฯ 10600", status:"sent", notes:"" },
-    { id:23, date:"2026-03-24", carrier:"J&T", tracking:"864610622735", name:"คุณศิริญกุล", phone:"0842491547", address:"The Saint Residences 588/1280 ถ.วิภาวดีรังสิต จอมพล เขตจตุจักร กรุงเทพฯ 10900", status:"sent", notes:"" },
-    { id:24, date:"2026-03-24", carrier:"J&T", tracking:"864606233365", name:"กัญญาวีร์ พฤ", phone:"0033592430", address:"56/1020 ตึก คลาสสิกแมนชั่น ซ.60/2 ถ.รามคำแหง บางกะปิ กรุงเทพฯ 10240", status:"sent", notes:"" },
-    { id:25, date:"2026-03-24", carrier:"J&T", tracking:"864602566730", name:"อลิน", phone:"0974463999", address:"เดอะสิพ์ศรีนครินทร์ ห้อง 5/585 8 ถ.รามคำแหง บางกะปิ กรุงเทพฯ 10240", status:"sent", notes:"" },
-    { id:26, date:"2026-03-24", carrier:"J&T", tracking:"864607200251", name:"ภัทรวดี เชม", phone:"0888511290", address:"88/176 มบ.วารามณ สาทร์หน้า เขตสาทร์ แขวงลาดพร้าว กรุงเทพฯ 10220", status:"sent", notes:"" },
-    { id:27, date:"2026-03-24", carrier:"J&T", tracking:"864609952194", name:"กัลย์สิ", phone:"0680768541", address:"เดอะชัยม่อน เรสสิเด้นซ์ ห้องA308 เลขที่148 หลักสองเหนือ เขตสายไหม กรุงเทพฯ 10210", status:"sent", notes:"" },
-    { id:28, date:"2026-03-24", carrier:"J&T", tracking:"864606977533", name:"โชนิศา คริจิ", phone:"0617077514", address:"693 ม.ซัมกุล ซ.9 ถ.พระราม2 ซ.42 บางมด เขตจอมทอง กรุงเทพฯ 10150", status:"sent", notes:"" }
+    { id:1, date:"2026-03-24", carrier:"SPX", tracking:"TH06424B198243", name:"สุภัทพล", phone:"", address:"333/381 หมู่บ้านกิตตินคร ม.5 ซ.บาลพลี พัฒนา ก.เทพารักษ์ ต.บางเพรียง อ.บางบ่อ สมุทรปราการ 10560", status:"sent", notes:"", photo:"photos/IMG_9941.JPG" },
+    { id:2, date:"2026-03-24", carrier:"SPX", tracking:"TH06789380S903", name:"ออม", phone:"082-932-4229", address:"557/702 คอนโดแมเนอร์-สนามบินน้ำ ถ.สนามบินน้ำ ต.บางกระสอ อ.เมืองนนทบุรี นนทบุรี 11000", status:"sent", notes:"", photo:"photos/IMG_9942.JPG" },
+    { id:3, date:"2026-03-24", carrier:"SPX", tracking:"TH06865798S823", name:"ชูจีดา", phone:"", address:"หอพัก U-house บางนา ห้อง 419 เลขที่ 45 ม.7 ซ.มิณสนา ต.บางฉลอง อ.บางพลี สมุทรปราการ 10540", status:"sent", notes:"", photo:"photos/IMG_9944.JPG" },
+    { id:4, date:"2026-03-24", carrier:"SPX", tracking:"TH06844282I402", name:"วิภาดี", phone:"", address:"52/162 หอพักภาณิศาเรสสิเด้น 2 ถ.เอกทักษิณ (ห้อง45/P.2) ต.หลักหก อ.เมืองปทุมธานี ปทุมธานี 12000", status:"sent", notes:"", photo:"photos/IMG_9945.JPG" },
+    { id:5, date:"2026-03-24", carrier:"SPX", tracking:"TH06244B794753", name:"ชนณี", phone:"0898076087", address:"20/400 แกรนด์คาแนล ประชาชื่น ต.บางตลาด อ.ปากเกร็ด นนทบุรี 11120", status:"sent", notes:"", photo:"photos/IMG_9946.JPG" },
+    { id:6, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779035", name:"กัญญารีร์ ม้องมุกข์", phone:"0986698651", address:"122/17 ม.1 ถ.วัดโพธิ์-บางใหญ่ มะขามเตี้ย เมือง สุราษฎร์ธานี 84000", status:"sent", notes:"KUL069", photo:"photos/IMG_9947.JPG" },
+    { id:7, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779005", name:"อรีศรา บาโจ", phone:"0985043407", address:"52/23 หมู่1 ซ.อาปา ม.โป่ง บางละมุง ชลบุรี 20150", status:"sent", notes:"KMK152", photo:"photos/IMG_9948.JPG" },
+    { id:8, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778959", name:"ปลายฟ้า สีหาคม", phone:"0903196609", address:"95 ม.4 วานรนิวาส วานรนิวาส สกลนคร 47120", status:"sent", notes:"WNV013", photo:"photos/IMG_9949.JPG" },
+    { id:9, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778975", name:"กมลศักดิ์ณ์ พิพัฒน์", phone:"0933857986", address:"102/184 ห้อง304 หอพักสีฟ้า บ้านฉาย ม.10 ทุ่งสุขลา ศรีราชา ชลบุรี 20230", status:"sent", notes:"WLT003", photo:"photos/IMG_9950.JPG" },
+    { id:10, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779054", name:"พาดิน", phone:"0980471563", address:"หอพักนักศึกษา อาคาร 7 ม.สงขลาครินทร์ คอหงส์ หาดใหญ่ สงขลา 90110", status:"sent", notes:"PSU001", photo:"photos/IMG_9951.JPG" },
+    { id:11, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779058", name:"วราลี พัฒนสิน", phone:"0979959859", address:"16/279 ม.8 หนองปลาไหล บางละมุง ชลบุรี 20150", status:"sent", notes:"PTY056", photo:"photos/IMG_9952.JPG" },
+    { id:12, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779015", name:"คุณสกร", phone:"0985691178", address:"บ้านพักอาจารย์วิทยาลัยเทคนิค 502 ม.11 ขามใหญ่ เมืองอุบลราชธานี อุบลราชธานี 34000", status:"sent", notes:"UBP002", photo:"photos/IMG_9953.JPG" },
+    { id:13, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779068", name:"พิมพ์นรา", phone:"0935096542", address:"177/8 รักษ์ไทย์ ถ.ประชาอินดี หาดใหญ่ สงขลา 90110", status:"sent", notes:"RYD003", photo:"photos/IMG_9954.JPG" },
+    { id:14, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779027", name:"ณัฐธิดา", phone:"0624397773", address:"1/347 ตึก 5 The North Park Condo ถ.ลงหาดบางแสน แสนสุข เมืองชลบุรี ชลบุรี 20130", status:"sent", notes:"AMA051", photo:"photos/IMG_9955.JPG" },
+    { id:15, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778992", name:"JJ", phone:"0930635672", address:"Hug Academy เลขที่ 1/6 ถ.อำนาม ศรีภูมิ เมืองเชียงใหม่ เชียงใหม่ 50200", status:"sent", notes:"SUT068", photo:"photos/IMG_9956.JPG" },
+    { id:16, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778984", name:"จิตรวิสัย ชุมพล", phone:"0619191662", address:"19/26 ถน.5 สี่แยก อรัญประเทศ อรัญประเทศ สระแก้ว 27120", status:"sent", notes:"ARR034", photo:"photos/IMG_9957.JPG" },
+    { id:17, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779043", name:"ชัยนาม ไทยบันลือ", phone:"0835768833", address:"ม.9 วิสาหกรค แม่สาย เชียงราย 57130", status:"sent", notes:"MMS106", photo:"photos/IMG_9958.JPG" },
+    { id:18, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778955", name:"คุณใหม่", phone:"0915552655", address:"104 มบ.บ้านถ้ำพัฒนา ม.1 ซอย 1/1 โป่งงาม แม่สาย เชียงราย 57130", status:"sent", notes:"MMS021", photo:"photos/IMG_9959.JPG" },
+    { id:19, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778998", name:"พิเก็ม", phone:"0621584427", address:"หอพักสานฝัน อพาร์ทเม้น 249 ม.15 ยามเรียง กันทรวิชัย มหาสารคาม 44150", status:"sent", notes:"KTC007", photo:"photos/IMG_9960.JPG" },
+    { id:20, date:"2026-03-24", carrier:"J&T", tracking:"864607747975", name:"นางสาวอังคณา คิด", phone:"0903827999", address:"53/175 หมู่บ้านสกาวิตน์ ซ.รามคำแหง บึงกุ่ม กรุงเทพฯ 10510", status:"sent", notes:"", photo:"photos/IMG_9961.JPG" },
+    { id:21, date:"2026-03-24", carrier:"J&T", tracking:"864610884340", name:"คนสาวร สา", phone:"0875523444", address:"5/36 ทุกกุมาลี#1 ซอยเพชรบุรี11 ถนนเพชรบุรี ราชเทวี กรุงเทพฯ 10400", status:"sent", notes:"", photo:"photos/IMG_9962.JPG" },
+    { id:22, date:"2026-03-24", carrier:"J&T", tracking:"864602667740", name:"คุณเอลีค", phone:"0979246342", address:"144/464 สาทร เจริญนคร บางลำภูล่าง เขตคลองสาน กรุงเทพฯ 10600", status:"sent", notes:"", photo:"photos/IMG_9963.JPG" },
+    { id:23, date:"2026-03-24", carrier:"J&T", tracking:"864610622735", name:"คุณศิริญกุล", phone:"0842491547", address:"The Saint Residences 588/1280 ถ.วิภาวดีรังสิต จอมพล เขตจตุจักร กรุงเทพฯ 10900", status:"sent", notes:"", photo:"photos/IMG_9964.JPG" },
+    { id:24, date:"2026-03-24", carrier:"J&T", tracking:"864606233365", name:"กัญญาวีร์ พฤ", phone:"0033592430", address:"56/1020 ตึก คลาสสิกแมนชั่น ซ.60/2 ถ.รามคำแหง บางกะปิ กรุงเทพฯ 10240", status:"sent", notes:"", photo:"photos/IMG_9966.JPG" },
+    { id:25, date:"2026-03-24", carrier:"J&T", tracking:"864602566730", name:"อลิน", phone:"0974463999", address:"เดอะสิพ์ศรีนครินทร์ ห้อง 5/585 8 ถ.รามคำแหง บางกะปิ กรุงเทพฯ 10240", status:"sent", notes:"", photo:"photos/IMG_9967.JPG" },
+    { id:26, date:"2026-03-24", carrier:"J&T", tracking:"864607200251", name:"ภัทรวดี เชม", phone:"0888511290", address:"88/176 มบ.วารามณ สาทร์หน้า เขตสาทร์ แขวงลาดพร้าว กรุงเทพฯ 10220", status:"sent", notes:"", photo:"photos/IMG_9968.JPG" },
+    { id:27, date:"2026-03-24", carrier:"J&T", tracking:"864609952194", name:"กัลย์สิ", phone:"0680768541", address:"เดอะชัยม่อน เรสสิเด้นซ์ ห้องA308 เลขที่148 หลักสองเหนือ เขตสายไหม กรุงเทพฯ 10210", status:"sent", notes:"", photo:"photos/IMG_9969.JPG" },
+    { id:28, date:"2026-03-24", carrier:"J&T", tracking:"864606977533", name:"โชนิศา คริจิ", phone:"0617077514", address:"693 ม.ซัมกุล ซ.9 ถ.พระราม2 ซ.42 บางมด เขตจอมทอง กรุงเทพฯ 10150", status:"sent", notes:"", photo:"photos/IMG_9970.JPG" }
 ];
 
 // ─── Data ───
@@ -659,14 +693,19 @@ function render() {
                 <div class="pkg-recipient">${hl(p.name || '-')}</div>
                 <div class="pkg-status ${sc}">${st}</div>
             </div>
-            <div class="pkg-tracking-row">
-                <span class="pkg-carrier ${cc}">${p.carrier}</span>
-                <span class="pkg-tracking">${hl(p.tracking || '-')}</span>
-                ${df ? `<span style="margin-left:auto;font-size:12px;color:var(--text3);">${df}</span>` : ''}
-            </div>
-            <div class="pkg-details">
-                ${p.address ? `<div class="detail-row"><svg class="detail-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>${hl(truncAddr(p.address))}</span></div>` : ''}
-                ${p.phone ? `<div class="detail-row"><svg class="detail-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>${p.phone}</span></div>` : ''}
+            <div class="pkg-card-body">
+                <div class="pkg-card-info">
+                    <div class="pkg-tracking-row">
+                        <span class="pkg-carrier ${cc}">${p.carrier}</span>
+                        <span class="pkg-tracking">${hl(p.tracking || '-')}</span>
+                        ${df ? `<span style="margin-left:auto;font-size:12px;color:var(--text3);">${df}</span>` : ''}
+                    </div>
+                    <div class="pkg-details">
+                        ${p.address ? `<div class="detail-row"><svg class="detail-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>${hl(truncAddr(p.address))}</span></div>` : ''}
+                        ${p.phone ? `<div class="detail-row"><svg class="detail-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>${p.phone}</span></div>` : ''}
+                    </div>
+                </div>
+                ${p.photo ? `<img class="pkg-thumb" src="${p.photo}" alt="รูปพัสดุ" onclick="openLightbox(event,'${p.photo}')" loading="lazy">` : ''}
             </div>
             <div class="pkg-actions">
                 ${p.tracking ? `<button class="action-btn action-share" onclick="copyTrkLink(event,${p.id})"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>คัดลอกลิงก์ส่งลูกค้า</button>` : ''}
@@ -689,9 +728,18 @@ function hl(text) {
 }
 
 function toggleCard(id, e) {
-    if (e.target.closest('.action-btn')) return;
+    if (e.target.closest('.action-btn') || e.target.closest('.pkg-thumb')) return;
     expandedId = expandedId === id ? null : id;
     render();
+}
+
+function openLightbox(e, src) {
+    e.stopPropagation();
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.add('active');
+}
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
 }
 
 function copyTrkLink(e, id) {
