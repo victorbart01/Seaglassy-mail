@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Seaglassy">
+    <title>Seaglassy</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root {
+            --primary: #f5a623;
+            --primary-dark: #d48e00;
+            --primary-light: #fff9eb;
+            --yellow: #ffc800;
+            --yellow-dark: #e5a600;
+            --bg: #fafaf7;
+            --card: #ffffff;
+            --text: #1a1a1a;
+            --text2: #6b7280;
+            --text3: #9ca3af;
+            --border: #e5e5e0;
+            --green: #22c55e;
+            --green-bg: #dcfce7;
+            --green-text: #166534;
+            --orange: #f59e0b;
+            --orange-bg: #fef3c7;
+            --orange-text: #92400e;
+            --purple: #f5a623;
+            --radius: 16px;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding-bottom: calc(80px + var(--safe-bottom));
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─── Top bar ─── */
+        .top-bar {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(248,250,252,0.85);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            padding-top: calc(12px + env(safe-area-inset-top, 0px));
+        }
+
+        .top-bar-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .brand-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, #ffc800, #f5a623);
+            display: flex; align-items: center; justify-content: center;
+            color: white;
+        }
+        .brand-icon svg { width: 20px; height: 20px; }
+
+        .brand h1 {
+            font-size: 1.2rem; font-weight: 700; color: var(--text);
+            letter-spacing: -0.3px;
+        }
+
+        .top-actions {
+            display: flex; gap: 8px; align-items: center;
+        }
+
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 12px;
+            border: 1px solid var(--border); background: var(--card);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 1.1rem; transition: all 0.2s;
+        }
+        .icon-btn:active { transform: scale(0.92); background: var(--bg); }
+
+        .search-bar {
+            position: relative;
+        }
+        .search-bar input {
+            width: 100%; padding: 10px 14px 10px 40px;
+            border: 1.5px solid var(--border); border-radius: 12px;
+            font-size: 15px; background: var(--card); outline: none;
+            transition: border-color 0.2s; color: var(--text);
+        }
+        .search-bar input:focus { border-color: var(--yellow); }
+        .search-bar input::placeholder { color: var(--text3); }
+        .search-bar .search-icon {
+            position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+            color: var(--text3); pointer-events: none;
+            display: flex; align-items: center;
+        }
+
+        /* ─── Filter pills ─── */
+        .filters {
+            display: flex; gap: 8px; padding: 10px 16px;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .filters::-webkit-scrollbar { display: none; }
+
+        .filter-pill {
+            flex-shrink: 0; padding: 7px 16px; border-radius: 20px;
+            border: 1.5px solid var(--border); background: var(--card);
+            font-size: 13px; font-weight: 600; color: var(--text2);
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .filter-pill:active { transform: scale(0.95); }
+        .filter-pill.active {
+            background: var(--yellow); color: #1a1a1a; border-color: var(--yellow);
+        }
+
+        /* ─── Stats row ─── */
+        .stats-row {
+            display: flex; gap: 8px; padding: 4px 16px 8px;
+        }
+        .stat-mini {
+            flex: 1; text-align: center; padding: 10px 8px;
+            background: var(--card); border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .stat-mini .num { font-size: 1.4rem; font-weight: 800; color: var(--yellow-dark); }
+        .stat-mini .lbl { font-size: 10px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+        /* ─── Package cards ─── */
+        .cards-container {
+            padding: 8px 16px 16px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .pkg-card {
+            background: var(--card); border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 14px 16px;
+            transition: all 0.2s; cursor: pointer;
+            position: relative; overflow: hidden;
+        }
+        .pkg-card:active { transform: scale(0.985); background: #f8fafc; }
+
+        .pkg-card-top {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .pkg-recipient {
+            font-size: 16px; font-weight: 700; color: var(--text);
+            line-height: 1.3;
+        }
+
+        .pkg-status {
+            flex-shrink: 0; padding: 4px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .pkg-status.sent { background: var(--green-bg); color: var(--green-text); }
+        .pkg-status.pending { background: var(--orange-bg); color: var(--orange-text); }
+
+        .pkg-tracking-row {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+        }
+
+        .pkg-carrier {
+            padding: 2px 8px; border-radius: 6px;
+            font-size: 11px; font-weight: 700;
+        }
+        .c-spx { background: #fef3c7; color: #92400e; }
+        .c-kex { background: #dbeafe; color: #1e40af; }
+        .c-jt { background: #fce7f3; color: #9d174d; }
+
+        .pkg-tracking {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 13px; font-weight: 600; color: #b47d00;
+            letter-spacing: 0.5px;
+        }
+
+        .pkg-details {
+            font-size: 13px; color: var(--text2); line-height: 1.4;
+        }
+        .pkg-details .detail-row {
+            display: flex; align-items: baseline; gap: 6px; margin-top: 3px;
+        }
+        .pkg-details .detail-icon {
+            flex-shrink: 0; width: 14px; height: 14px; margin-top: 1px;
+        }
+
+        /* ─── Expanded card actions ─── */
+        .pkg-actions {
+            display: none;
+            gap: 8px; margin-top: 12px; padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .pkg-card.expanded .pkg-actions { display: flex; }
+
+        .action-btn {
+            flex: 1; padding: 10px 8px; border-radius: 10px;
+            border: 1.5px solid var(--border); background: var(--card);
+            font-size: 12px; font-weight: 600; color: var(--text2);
+            cursor: pointer; transition: all 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .action-btn:active { transform: scale(0.95); background: var(--bg); }
+        .action-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .action-btn.action-track { background: var(--yellow); border-color: var(--yellow); color: #1a1a1a; font-weight: 700; }
+        .action-btn.action-track:active { background: var(--yellow-dark); }
+        .action-btn.action-del:active { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+
+        /* ─── FAB (Floating Action Button) ─── */
+        .fab {
+            position: fixed;
+            bottom: calc(90px + var(--safe-bottom));
+            right: 20px;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffc800, #f5a623);
+            color: #1a1a1a; border: none;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 20px rgba(245,166,35,0.45);
+            cursor: pointer; z-index: 200;
+            transition: all 0.2s;
+        }
+        .fab svg { width: 28px; height: 28px; }
+        .fab:active { transform: scale(0.9); }
+
+        /* ─── Bottom nav ─── */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            display: flex; justify-content: space-around;
+            padding: 8px 0;
+            padding-bottom: calc(8px + var(--safe-bottom));
+            z-index: 150;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 2px; padding: 6px 16px; border: none; background: none;
+            cursor: pointer; color: var(--text3); font-size: 10px; font-weight: 600;
+            transition: color 0.2s;
+        }
+        .nav-item.active { color: var(--yellow-dark); }
+        .nav-item .nav-icon { display: flex; align-items: center; justify-content: center; height: 24px; }
+        .nav-item .nav-icon svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .nav-item:active { transform: scale(0.9); }
+
+        /* ─── Modal (fullscreen on mobile) ─── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: flex-end; align-items: flex-end;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-sheet {
+            background: var(--card);
+            border-radius: 24px 24px 0 0;
+            width: 100%;
+            max-height: 92vh; max-height: 92dvh;
+            overflow-y: auto;
+            padding: 0 20px 20px;
+            padding-bottom: calc(20px + var(--safe-bottom));
+            animation: slideUp 0.3s ease;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-handle {
+            width: 36px; height: 5px; border-radius: 3px;
+            background: var(--text3); margin: 12px auto 16px;
+        }
+
+        .modal-title {
+            font-size: 1.3rem; font-weight: 800; margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .form-field { margin-bottom: 14px; }
+        .form-field label {
+            display: block; font-size: 12px; font-weight: 700;
+            color: var(--text2); margin-bottom: 5px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-field input, .form-field select, .form-field textarea {
+            width: 100%; padding: 12px 14px;
+            border: 1.5px solid var(--border); border-radius: 12px;
+            font-size: 16px; outline: none;
+            transition: border-color 0.2s; background: var(--bg);
+            color: var(--text);
+            /* prevent zoom on iOS */
+            font-size: max(16px, 1em);
+        }
+        .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+            border-color: var(--yellow); background: var(--card);
+        }
+        .form-field textarea { resize: vertical; min-height: 70px; }
+
+        .form-row { display: flex; gap: 10px; }
+        .form-row .form-field { flex: 1; }
+
+        .btn-primary {
+            width: 100%; padding: 14px; border-radius: 14px;
+            background: var(--yellow); color: #1a1a1a; border: none;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: all 0.15s; margin-top: 6px;
+        }
+        .btn-primary:active { transform: scale(0.98); background: var(--yellow-dark); }
+
+        .btn-secondary {
+            width: 100%; padding: 14px; border-radius: 14px;
+            background: var(--bg); color: var(--text2); border: 1px solid var(--border);
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            transition: all 0.15s; margin-top: 8px;
+        }
+        .btn-secondary:active { transform: scale(0.98); }
+
+        /* ─── Scan modal ─── */
+        .scan-zone {
+            border: 3px dashed var(--border); border-radius: 20px;
+            padding: 40px 20px; text-align: center; cursor: pointer;
+            transition: all 0.3s; position: relative; background: var(--bg);
+            margin-bottom: 16px;
+        }
+        .scan-zone:active, .scan-zone.dragover {
+            border-color: var(--yellow); background: var(--primary-light);
+        }
+        .scan-zone input[type="file"] {
+            position: absolute; inset: 0; opacity: 0; cursor: pointer;
+            width: 100%; height: 100%;
+        }
+        .scan-icon { font-size: 3rem; margin-bottom: 8px; }
+        .scan-text { color: var(--text2); font-size: 15px; line-height: 1.5; }
+        .scan-text strong { color: var(--yellow-dark); font-weight: 700; }
+
+        .scan-preview { margin-top: 12px; display: none; text-align: center; }
+        .scan-preview img {
+            max-width: 100%; max-height: 180px; border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .ocr-loader {
+            display: none; margin-top: 16px; text-align: center;
+        }
+        .ocr-bar-bg {
+            width: 100%; height: 6px; background: var(--border); border-radius: 3px;
+            overflow: hidden; margin-top: 8px;
+        }
+        .ocr-bar {
+            height: 100%; border-radius: 3px; width: 0%;
+            background: linear-gradient(90deg, var(--yellow-dark), var(--yellow));
+            transition: width 0.3s;
+        }
+        .ocr-text { font-size: 13px; color: var(--text2); margin-top: 6px; }
+
+        /* ─── Toast ─── */
+        .toast {
+            position: fixed; top: calc(20px + env(safe-area-inset-top, 0px));
+            left: 50%; transform: translateX(-50%) translateY(-100px);
+            background: var(--text); color: white;
+            padding: 12px 24px; border-radius: 14px;
+            font-size: 14px; font-weight: 600;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            opacity: 0; transition: all 0.3s; z-index: 3000;
+            white-space: nowrap; max-width: 90vw;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--text3);
+        }
+        .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+        .empty-text { font-size: 15px; line-height: 1.5; }
+
+        .highlight { background: #fef08a; border-radius: 3px; padding: 0 2px; }
+
+        /* ─── iPad / Desktop ─── */
+        @media (min-width: 768px) {
+            body { padding-bottom: 0; }
+            .bottom-nav { display: none; }
+            .fab { bottom: 30px; right: 30px; width: 64px; height: 64px; }
+
+            .cards-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+                gap: 12px;
+                padding: 12px 24px 24px;
+                max-width: 1200px; margin: 0 auto;
+            }
+
+            .top-bar { padding: 16px 24px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+            .filters { padding: 10px 24px; }
+            .stats-row { padding: 4px 24px 8px; max-width: 600px; }
+
+            .modal-sheet {
+                border-radius: 24px;
+                max-width: 480px; margin: auto;
+                max-height: 85vh;
+            }
+            .modal-overlay { justify-content: center; align-items: center; }
+
+            @keyframes slideUp {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .cards-container { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23ffc800'/><path d='M30 70V38l20-13 20 13v32H30z' fill='none' stroke='%231a1a1a' stroke-width='5' stroke-linejoin='round'/><path d='M42 70V52h16v18' fill='none' stroke='%231a1a1a' stroke-width='5' stroke-linejoin='round'/></svg>">
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+    <div class="top-bar-header">
+        <div class="brand">
+            <div class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16v-2"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg></div>
+            <h1>Seaglassy</h1>
+        </div>
+        <div class="top-actions">
+            <button class="icon-btn" onclick="openAddModal()" title="เพิ่มพัสดุ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button class="icon-btn" onclick="exportCSV()" title="ส่งออก"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        </div>
+    </div>
+    <div class="search-bar">
+        <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input type="text" id="searchInput" placeholder="ค้นหาชื่อ เลขพัสดุ ที่อยู่ เบอร์โทร...">
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+    <button class="filter-pill active" data-filter="all">ทั้งหมด</button>
+    <button class="filter-pill" data-filter="sent">ส่งแล้ว</button>
+    <button class="filter-pill" data-filter="pending">รอส่ง</button>
+    <button class="filter-pill" data-filter="SPX">SPX</button>
+    <button class="filter-pill" data-filter="KEX">KEX</button>
+    <button class="filter-pill" data-filter="J&T">J&T</button>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+    <div class="stat-mini"><div class="num" id="totalCount">0</div><div class="lbl">ทั้งหมด</div></div>
+    <div class="stat-mini"><div class="num" id="sentCount">0</div><div class="lbl">ส่งแล้ว</div></div>
+    <div class="stat-mini"><div class="num" id="pendingCount">0</div><div class="lbl">รอส่ง</div></div>
+</div>
+
+<!-- Package cards -->
+<div class="cards-container" id="cardsContainer"></div>
+
+<!-- FAB: camera -->
+<button class="fab" onclick="openScanModal()" title="สแกนรูปพัสดุ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+
+<!-- Bottom nav (mobile) -->
+<div class="bottom-nav">
+    <button class="nav-item active" data-filter="all" onclick="navFilter(this, 'all')">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16v-2"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg></span>ทั้งหมด
+    </button>
+    <button class="nav-item" data-filter="sent" onclick="navFilter(this, 'sent')">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>ส่งแล้ว
+    </button>
+    <button class="nav-item" data-filter="pending" onclick="navFilter(this, 'pending')">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>รอส่ง
+    </button>
+    <button class="nav-item" onclick="openScanModal()">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>สแกน
+    </button>
+</div>
+
+<!-- Scan Modal -->
+<div class="modal-overlay" id="scanModal">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">สแกนรูปพัสดุ</div>
+        <div class="scan-zone" id="uploadZone">
+            <input type="file" id="photoInput" accept="image/*" capture="environment">
+            <div class="scan-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d48e00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+            <div class="scan-text">
+                <strong>แตะเพื่อถ่ายรูป</strong><br>
+                หรือเลือกรูปจากอัลบั้ม
+            </div>
+        </div>
+        <div class="scan-preview" id="scanPreview">
+            <img id="previewImg" src="" alt="preview">
+        </div>
+        <div class="ocr-loader" id="ocrLoader">
+            <div class="ocr-text" id="ocrText">กำลังอ่านข้อมูล...</div>
+            <div class="ocr-bar-bg"><div class="ocr-bar" id="ocrBar"></div></div>
+        </div>
+        <button class="btn-secondary" onclick="closeScanModal()">ยกเลิก</button>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="formModal">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="formTitle">เพิ่มพัสดุใหม่</div>
+        <input type="hidden" id="editId">
+        <div class="form-row">
+            <div class="form-field">
+                <label>วันที่ส่ง</label>
+                <input type="date" id="formDate">
+            </div>
+            <div class="form-field">
+                <label>บริษัทขนส่ง</label>
+                <select id="formCarrier">
+                    <option value="KEX">KEX Express</option>
+                    <option value="J&T">J&T Express</option>
+                    <option value="SPX">SPX Express</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field">
+            <label>เลขพัสดุ (Tracking)</label>
+            <input type="text" id="formTracking" placeholder="เช่น TREE200779035">
+        </div>
+        <div class="form-field">
+            <label>ชื่อผู้รับ</label>
+            <input type="text" id="formName" placeholder="ชื่อ นามสกุล">
+        </div>
+        <div class="form-field">
+            <label>เบอร์โทร</label>
+            <input type="tel" id="formPhone" placeholder="0XX-XXX-XXXX">
+        </div>
+        <div class="form-field">
+            <label>ที่อยู่</label>
+            <textarea id="formAddress" placeholder="ที่อยู่จัดส่ง"></textarea>
+        </div>
+        <div class="form-field">
+            <label>สถานะ</label>
+            <select id="formStatus">
+                <option value="sent">ส่งแล้ว</option>
+                <option value="pending">รอส่ง</option>
+            </select>
+        </div>
+        <div class="form-field">
+            <label>หมายเหตุ</label>
+            <input type="text" id="formNotes" placeholder="หมายเหตุ (ถ้ามี)">
+        </div>
+        <button class="btn-primary" onclick="savePackage()">บันทึก</button>
+        <button class="btn-secondary" onclick="closeFormModal()">ยกเลิก</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Initial data ───
+const initialData = [
+    { id:1, date:"2026-03-24", carrier:"SPX", tracking:"TH06424B198243", name:"สุภัทพล", phone:"", address:"333/381 หมู่บ้านกิตตินคร ม.5 ซ.บาลพลี พัฒนา ก.เทพารักษ์ ต.บางเพรียง อ.บางบ่อ สมุทรปราการ 10560", status:"sent", notes:"IMG_9941" },
+    { id:2, date:"2026-03-24", carrier:"SPX", tracking:"TH06789380S903", name:"ออม", phone:"082-932-4229", address:"557/702 คอนโดแมเนอร์-สนามบินน้ำ ถ.สนามบินน้ำ ต.บางกระสอ อ.เมืองนนทบุรี นนทบุรี 11000", status:"sent", notes:"IMG_9942" },
+    { id:3, date:"2026-03-24", carrier:"SPX", tracking:"TH06865798S823", name:"ชูจีดา", phone:"", address:"หอพัก U-house บางนา ห้อง 419 เลขที่ 45 ม.7 ซ.มิณสนา ต.บางฉลอง อ.บางพลี สมุทรปราการ 10540", status:"sent", notes:"IMG_9944" },
+    { id:4, date:"2026-03-24", carrier:"SPX", tracking:"TH06844282I402", name:"วิภาดี", phone:"", address:"52/162 หอพักภาณิศาเรสสิเด้น 2 ถ.เอกทักษิณ (ห้อง45/P.2) ต.หลักหก อ.เมืองปทุมธานี ปทุมธานี 12000", status:"sent", notes:"IMG_9945" },
+    { id:5, date:"2026-03-24", carrier:"SPX", tracking:"TH06244B794753", name:"ชนณี", phone:"0898076087", address:"20/400 แกรนด์คาแนล ประชาชื่น ต.บางตลาด อ.ปากเกร็ด นนทบุรี 11120", status:"sent", notes:"IMG_9946" },
+    { id:6, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779035", name:"กัญญารีร์ ม้องมุกข์", phone:"0986698651", address:"122/17 ม.1 ถ.วัดโพธิ์-บางใหญ่ มะขามเตี้ย เมือง สุราษฎร์ธานี 84000", status:"sent", notes:"KUL069" },
+    { id:7, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779005", name:"อรีศรา บาโจ", phone:"0985043407", address:"52/23 หมู่1 ซ.อาปา ม.โป่ง บางละมุง ชลบุรี 20150", status:"sent", notes:"KMK152" },
+    { id:8, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778959", name:"ปลายฟ้า สีหาคม", phone:"0903196609", address:"95 ม.4 วานรนิวาส วานรนิวาส สกลนคร 47120", status:"sent", notes:"WNV013" },
+    { id:9, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778975", name:"กมลศักดิ์ณ์ พิพัฒน์", phone:"0933857986", address:"102/184 ห้อง304 หอพักสีฟ้า บ้านฉาย ม.10 ทุ่งสุขลา ศรีราชา ชลบุรี 20230", status:"sent", notes:"WLT003" },
+    { id:10, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779054", name:"พาดิน", phone:"0980471563", address:"หอพักนักศึกษา อาคาร 7 ม.สงขลาครินทร์ คอหงส์ หาดใหญ่ สงขลา 90110", status:"sent", notes:"PSU001" },
+    { id:11, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779058", name:"วราลี พัฒนสิน", phone:"0979959859", address:"16/279 ม.8 หนองปลาไหล บางละมุง ชลบุรี 20150", status:"sent", notes:"PTY056" },
+    { id:12, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779015", name:"คุณสกร", phone:"0985691178", address:"บ้านพักอาจารย์วิทยาลัยเทคนิค 502 ม.11 ขามใหญ่ เมืองอุบลราชธานี อุบลราชธานี 34000", status:"sent", notes:"UBP002" },
+    { id:13, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779068", name:"พิมพ์นรา", phone:"0935096542", address:"177/8 รักษ์ไทย์ ถ.ประชาอินดี หาดใหญ่ สงขลา 90110", status:"sent", notes:"RYD003" },
+    { id:14, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779027", name:"ณัฐธิดา", phone:"0624397773", address:"1/347 ตึก 5 The North Park Condo ถ.ลงหาดบางแสน แสนสุข เมืองชลบุรี ชลบุรี 20130", status:"sent", notes:"AMA051" },
+    { id:15, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778992", name:"JJ", phone:"0930635672", address:"Hug Academy เลขที่ 1/6 ถ.อำนาม ศรีภูมิ เมืองเชียงใหม่ เชียงใหม่ 50200", status:"sent", notes:"SUT068" },
+    { id:16, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778984", name:"จิตรวิสัย ชุมพล", phone:"0619191662", address:"19/26 ถน.5 สี่แยก อรัญประเทศ อรัญประเทศ สระแก้ว 27120", status:"sent", notes:"ARR034" },
+    { id:17, date:"2026-03-24", carrier:"KEX", tracking:"TREE200779043", name:"ชัยนาม ไทยบันลือ", phone:"0835768833", address:"ม.9 วิสาหกรค แม่สาย เชียงราย 57130", status:"sent", notes:"MMS106" },
+    { id:18, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778955", name:"คุณใหม่", phone:"0915552655", address:"104 มบ.บ้านถ้ำพัฒนา ม.1 ซอย 1/1 โป่งงาม แม่สาย เชียงราย 57130", status:"sent", notes:"MMS021" },
+    { id:19, date:"2026-03-24", carrier:"KEX", tracking:"TREE200778998", name:"พิเก็ม", phone:"0621584427", address:"หอพักสานฝัน อพาร์ทเม้น 249 ม.15 ยามเรียง กันทรวิชัย มหาสารคาม 44150", status:"sent", notes:"KTC007" },
+    { id:20, date:"2026-03-24", carrier:"J&T", tracking:"864607747975", name:"นางสาวอังคณา คิด", phone:"0903827999", address:"53/175 หมู่บ้านสกาวิตน์ ซ.รามคำแหง บึงกุ่ม กรุงเทพฯ 10510", status:"sent", notes:"" },
+    { id:21, date:"2026-03-24", carrier:"J&T", tracking:"864610884340", name:"คนสาวร สา", phone:"0875523444", address:"5/36 ทุกกุมาลี#1 ซอยเพชรบุรี11 ถนนเพชรบุรี ราชเทวี กรุงเทพฯ 10400", status:"sent", notes:"" },
+    { id:22, date:"2026-03-24", carrier:"J&T", tracking:"864602667740", name:"คุณเอลีค", phone:"0979246342", address:"144/464 สาทร เจริญนคร บางลำภูล่าง เขตคลองสาน กรุงเทพฯ 10600", status:"sent", notes:"" },
+    { id:23, date:"2026-03-24", carrier:"J&T", tracking:"864610622735", name:"คุณศิริญกุล", phone:"0842491547", address:"The Saint Residences 588/1280 ถ.วิภาวดีรังสิต จอมพล เขตจตุจักร กรุงเทพฯ 10900", status:"sent", notes:"" },
+    { id:24, date:"2026-03-24", carrier:"J&T", tracking:"864606233365", name:"กัญญาวีร์ พฤ", phone:"0033592430", address:"56/1020 ตึก คลาสสิกแมนชั่น ซ.60/2 ถ.รามคำแหง บางกะปิ กรุงเทพฯ 10240", status:"sent", notes:"" },
+    { id:25, date:"2026-03-24", carrier:"J&T", tracking:"864602566730", name:"อลิน", phone:"0974463999", address:"เดอะสิพ์ศรีนครินทร์ ห้อง 5/585 8 ถ.รามคำแหง บางกะปิ กรุงเทพฯ 10240", status:"sent", notes:"" },
+    { id:26, date:"2026-03-24", carrier:"J&T", tracking:"864607200251", name:"ภัทรวดี เชม", phone:"0888511290", address:"88/176 มบ.วารามณ สาทร์หน้า เขตสาทร์ แขวงลาดพร้าว กรุงเทพฯ 10220", status:"sent", notes:"" },
+    { id:27, date:"2026-03-24", carrier:"J&T", tracking:"864609952194", name:"กัลย์สิ", phone:"0680768541", address:"เดอะชัยม่อน เรสสิเด้นซ์ ห้องA308 เลขที่148 หลักสองเหนือ เขตสายไหม กรุงเทพฯ 10210", status:"sent", notes:"" },
+    { id:28, date:"2026-03-24", carrier:"J&T", tracking:"864606977533", name:"โชนิศา คริจิ", phone:"0617077514", address:"693 ม.ซัมกุล ซ.9 ถ.พระราม2 ซ.42 บางมด เขตจอมทอง กรุงเทพฯ 10150", status:"sent", notes:"" }
+];
+
+// ─── Data ───
+function loadPackages() {
+    const s = localStorage.getItem('seaglassy_packages_v2');
+    if (s) return JSON.parse(s);
+    localStorage.setItem('seaglassy_packages_v2', JSON.stringify(initialData));
+    return [...initialData];
+}
+function saveData(p) { localStorage.setItem('seaglassy_packages_v2', JSON.stringify(p)); }
+
+let packages = loadPackages();
+let currentFilter = 'all';
+let currentSearch = '';
+let expandedId = null;
+
+// ─── Render cards ───
+function render() {
+    const container = document.getElementById('cardsContainer');
+    let list = packages.filter(p => {
+        if (currentFilter === 'sent' && p.status !== 'sent') return false;
+        if (currentFilter === 'pending' && p.status !== 'pending') return false;
+        if (['SPX','KEX','J&T'].includes(currentFilter) && p.carrier !== currentFilter) return false;
+        if (currentSearch) {
+            const s = currentSearch.toLowerCase();
+            return ['name','tracking','address','phone','notes'].some(k => (p[k]||'').toLowerCase().includes(s));
+        }
+        return true;
+    });
+
+    list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    // Stats
+    document.getElementById('totalCount').textContent = packages.length;
+    document.getElementById('sentCount').textContent = packages.filter(p => p.status === 'sent').length;
+    document.getElementById('pendingCount').textContent = packages.filter(p => p.status === 'pending').length;
+
+    if (!list.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16v-2"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg></div><div class="empty-text">ไม่พบพัสดุ<br>ลองค้นหาใหม่ หรือกดปุ่มกล้องเพื่อเพิ่ม</div></div>`;
+        return;
+    }
+
+    container.innerHTML = list.map(p => {
+        const cc = p.carrier === 'SPX' ? 'c-spx' : p.carrier === 'KEX' ? 'c-kex' : 'c-jt';
+        const sc = p.status === 'sent' ? 'sent' : 'pending';
+        const st = p.status === 'sent' ? 'ส่งแล้ว' : 'รอส่ง';
+        const df = p.date ? new Date(p.date + 'T00:00:00').toLocaleDateString('th-TH', {day:'numeric',month:'short'}) : '';
+        const exp = expandedId === p.id ? ' expanded' : '';
+
+        return `<div class="pkg-card${exp}" onclick="toggleCard(${p.id}, event)">
+            <div class="pkg-card-top">
+                <div class="pkg-recipient">${hl(p.name || '-')}</div>
+                <div class="pkg-status ${sc}">${st}</div>
+            </div>
+            <div class="pkg-tracking-row">
+                <span class="pkg-carrier ${cc}">${p.carrier}</span>
+                <span class="pkg-tracking">${hl(p.tracking || '-')}</span>
+                ${df ? `<span style="margin-left:auto;font-size:12px;color:var(--text3);">${df}</span>` : ''}
+            </div>
+            <div class="pkg-details">
+                ${p.address ? `<div class="detail-row"><svg class="detail-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>${hl(truncAddr(p.address))}</span></div>` : ''}
+                ${p.phone ? `<div class="detail-row"><svg class="detail-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>${p.phone}</span></div>` : ''}
+            </div>
+            <div class="pkg-actions">
+                ${p.tracking ? `<button class="action-btn action-track" onclick="trackPkg(event,'${esc(p.tracking)}')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>ติดตาม</button>` : ''}
+                ${p.tracking ? `<button class="action-btn action-copy" onclick="copyTrk(event,'${esc(p.tracking)}')"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>คัดลอก</button>` : ''}
+                ${p.phone ? `<button class="action-btn action-call" onclick="callPhone(event,'${p.phone}')"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.11 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.574 2.81.7A2 2 0 0 1 22 16.92z"/></svg>โทร</button>` : ''}
+                <button class="action-btn action-edit" onclick="editPkg(event,${p.id})"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>แก้ไข</button>
+                <button class="action-btn action-del" onclick="delPkg(event,${p.id})"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>ลบ</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function truncAddr(a) { return a.length > 80 ? a.substring(0, 80) + '…' : a; }
+function esc(s) { return s.replace(/'/g, "\\'"); }
+
+function hl(text) {
+    if (!currentSearch || !text) return text;
+    const e = currentSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replace(new RegExp(`(${e})`, 'gi'), '<span class="highlight">$1</span>');
+}
+
+function toggleCard(id, e) {
+    if (e.target.closest('.action-btn')) return;
+    expandedId = expandedId === id ? null : id;
+    render();
+}
+
+function trackPkg(e, tracking) {
+    e.stopPropagation();
+    window.open(`https://parcelsapp.com/en/tracking/${encodeURIComponent(tracking)}`, '_blank');
+}
+
+function copyTrk(e, tracking) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(tracking).then(() => showToast('คัดลอกเลขพัสดุแล้ว ✓'));
+}
+
+function callPhone(e, phone) {
+    e.stopPropagation();
+    window.location.href = 'tel:' + phone;
+}
+
+// ─── Add / Edit ───
+function openAddModal() {
+    document.getElementById('formTitle').textContent = 'เพิ่มพัสดุใหม่';
+    document.getElementById('editId').value = '';
+    document.getElementById('formDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('formCarrier').value = 'KEX';
+    document.getElementById('formTracking').value = '';
+    document.getElementById('formName').value = '';
+    document.getElementById('formPhone').value = '';
+    document.getElementById('formAddress').value = '';
+    document.getElementById('formStatus').value = 'pending';
+    document.getElementById('formNotes').value = '';
+    document.getElementById('formModal').classList.add('active');
+}
+
+function editPkg(e, id) {
+    e.stopPropagation();
+    const p = packages.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('formTitle').textContent = 'แก้ไขพัสดุ';
+    document.getElementById('editId').value = p.id;
+    document.getElementById('formDate').value = p.date || '';
+    document.getElementById('formCarrier').value = p.carrier || 'KEX';
+    document.getElementById('formTracking').value = p.tracking || '';
+    document.getElementById('formName').value = p.name || '';
+    document.getElementById('formPhone').value = p.phone || '';
+    document.getElementById('formAddress').value = p.address || '';
+    document.getElementById('formStatus').value = p.status || 'sent';
+    document.getElementById('formNotes').value = p.notes || '';
+    document.getElementById('formModal').classList.add('active');
+}
+
+function closeFormModal() { document.getElementById('formModal').classList.remove('active'); }
+
+function savePackage() {
+    const eid = document.getElementById('editId').value;
+    const pkg = {
+        date: document.getElementById('formDate').value,
+        carrier: document.getElementById('formCarrier').value,
+        tracking: document.getElementById('formTracking').value,
+        name: document.getElementById('formName').value,
+        phone: document.getElementById('formPhone').value,
+        address: document.getElementById('formAddress').value,
+        status: document.getElementById('formStatus').value,
+        notes: document.getElementById('formNotes').value,
+    };
+    if (!pkg.name && !pkg.tracking) { showToast('กรุณากรอกชื่อหรือเลขพัสดุ'); return; }
+
+    if (eid) {
+        const i = packages.findIndex(p => p.id == eid);
+        if (i !== -1) packages[i] = { ...packages[i], ...pkg };
+        showToast('แก้ไขเรียบร้อย ✓');
+    } else {
+        pkg.id = Date.now();
+        packages.unshift(pkg);
+        showToast('เพิ่มพัสดุเรียบร้อย ✓');
+    }
+    saveData(packages); closeFormModal(); render();
+}
+
+function delPkg(e, id) {
+    e.stopPropagation();
+    if (!confirm('ลบพัสดุนี้?')) return;
+    packages = packages.filter(p => p.id !== id);
+    saveData(packages); render();
+    showToast('ลบแล้ว ✓');
+}
+
+// ─── Scan ───
+function openScanModal() {
+    document.getElementById('scanModal').classList.add('active');
+    document.getElementById('scanPreview').style.display = 'none';
+    document.getElementById('ocrLoader').style.display = 'none';
+    document.getElementById('photoInput').value = '';
+}
+function closeScanModal() { document.getElementById('scanModal').classList.remove('active'); }
+
+document.getElementById('photoInput').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+        document.getElementById('previewImg').src = ev.target.result;
+        document.getElementById('scanPreview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+
+    document.getElementById('ocrLoader').style.display = 'block';
+    document.getElementById('ocrText').textContent = 'กำลังเตรียมอ่าน...';
+    document.getElementById('ocrBar').style.width = '10%';
+
+    try {
+        const result = await Tesseract.recognize(file, 'tha+eng', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    const pct = Math.round(m.progress * 100);
+                    document.getElementById('ocrBar').style.width = pct + '%';
+                    document.getElementById('ocrText').textContent = `กำลังอ่าน... ${pct}%`;
+                }
+            }
+        });
+        document.getElementById('ocrBar').style.width = '100%';
+        document.getElementById('ocrText').textContent = 'เสร็จแล้ว!';
+
+        const extracted = parseLabel(result.data.text);
+        setTimeout(() => {
+            closeScanModal();
+            openAddModal();
+            if (extracted.tracking) document.getElementById('formTracking').value = extracted.tracking;
+            if (extracted.name) document.getElementById('formName').value = extracted.name;
+            if (extracted.phone) document.getElementById('formPhone').value = extracted.phone;
+            if (extracted.address) document.getElementById('formAddress').value = extracted.address;
+            if (extracted.carrier) document.getElementById('formCarrier').value = extracted.carrier;
+            document.getElementById('formStatus').value = 'sent';
+            showToast('ดึงข้อมูลจากรูปแล้ว - ตรวจสอบก่อนบันทึก');
+        }, 400);
+    } catch (err) {
+        console.error(err);
+        document.getElementById('ocrText').textContent = 'เกิดข้อผิดพลาด ลองใหม่';
+        document.getElementById('ocrBar').style.width = '0%';
+    }
+});
+
+function parseLabel(text) {
+    const r = { tracking:'', name:'', phone:'', address:'', carrier:'' };
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const full = lines.join(' ');
+
+    if (/SPX/i.test(full)) r.carrier = 'SPX';
+    else if (/KEX/i.test(full)) r.carrier = 'KEX';
+    else if (/J\s*[&]\s*T/i.test(full)) r.carrier = 'J&T';
+
+    const spx = full.match(/TH\d{2}[A-Z0-9]{8,}/i);
+    if (spx) { r.tracking = spx[0]; r.carrier = r.carrier || 'SPX'; }
+    const kex = full.match(/TREE\d{9,}/i);
+    if (kex) { r.tracking = kex[0]; r.carrier = r.carrier || 'KEX'; }
+    const jt = full.match(/86\d{10,}/);
+    if (jt) { r.tracking = jt[0]; r.carrier = r.carrier || 'J&T'; }
+    if (!r.tracking) { const g = full.match(/[A-Z]{2,4}\d{9,}/i); if (g) r.tracking = g[0]; }
+
+    const phones = full.match(/0[1-9]\d[\s-]?\d{3,4}[\s-]?\d{4}/g);
+    if (phones) {
+        r.phone = (phones.find(p => p.replace(/[\s-]/g,'') !== '0813721504') || '').replace(/[\s-]/g,'');
+    }
+
+    for (const pat of [/ผู้รับ\s*[:\s]*(.+?)(?:\[|\(|$)/m, /คุณ\s*(.+?)(?:\s*\[|\s*\(|\s*\d{2,}|$)/m]) {
+        const m = full.match(pat);
+        if (m?.[1]) { r.name = m[1].trim().substring(0, 50); break; }
+    }
+
+    const postal = full.match(/(\d{4,}[\/\d]*\s*.{10,}?\s*\d{5})/);
+    if (postal) r.address = postal[1].trim();
+    if (!r.address) {
+        const al = lines.filter(l => /\d{5}/.test(l) || /ม\.|ซ\.|ถ\.|เขต|แขวง|ตำบล|อำเภอ/.test(l));
+        if (al.length) r.address = al.join(' ');
+    }
+    return r;
+}
+
+// ─── Export CSV ───
+function exportCSV() {
+    const h = ['วันที่','ขนส่ง','เลขพัสดุ','ผู้รับ','เบอร์โทร','ที่อยู่','สถานะ','หมายเหตุ'];
+    const rows = packages.map(p => [p.date, p.carrier, p.tracking, p.name, p.phone, `"${(p.address||'').replace(/"/g,'""')}"`, p.status==='sent'?'ส่งแล้ว':'รอส่ง', p.notes||'']);
+    const csv = '\uFEFF' + h.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+    a.download = `seaglassy_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    showToast('ส่งออก CSV แล้ว ✓');
+}
+
+// ─── Toast ───
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── Filter events ───
+function navFilter(btn, f) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = f;
+    // sync filter pills
+    document.querySelectorAll('.filter-pill').forEach(p => {
+        p.classList.toggle('active', p.dataset.filter === f);
+    });
+    render();
+}
+
+document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        currentFilter = pill.dataset.filter;
+        // sync bottom nav
+        document.querySelectorAll('.nav-item[data-filter]').forEach(n => {
+            n.classList.toggle('active', n.dataset.filter === currentFilter);
+        });
+        render();
+    });
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+    currentSearch = e.target.value; render();
+});
+
+// Close modals on overlay tap
+document.getElementById('formModal').addEventListener('click', e => { if (e.target.id === 'formModal') closeFormModal(); });
+document.getElementById('scanModal').addEventListener('click', e => { if (e.target.id === 'scanModal') closeScanModal(); });
+
+// Drag and drop (iPad)
+const uz = document.getElementById('uploadZone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dragover'); });
+uz.addEventListener('dragleave', () => uz.classList.remove('dragover'));
+uz.addEventListener('drop', e => {
+    e.preventDefault(); uz.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith('image/')) {
+        const dt = new DataTransfer(); dt.items.add(file);
+        document.getElementById('photoInput').files = dt.files;
+        document.getElementById('photoInput').dispatchEvent(new Event('change'));
+    }
+});
+
+// Init
+render();
+</script>
+</body>
+</html>
