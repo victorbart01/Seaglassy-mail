@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Seaglassy">
     <title>Seaglassy</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script>const VISION_API_KEY = 'AIzaSyDba5mP7mMwixchBv42rcmz_sLucEnh7ug';</script>
     <style>
         :root {
             --primary: #f5a623;
@@ -874,19 +874,35 @@ async function handlePhoto(e) {
     document.getElementById('ocrBar').style.width = '10%';
 
     try {
-        const result = await Tesseract.recognize(file, 'tha+eng', {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    const pct = Math.round(m.progress * 100);
-                    document.getElementById('ocrBar').style.width = pct + '%';
-                    document.getElementById('ocrText').textContent = `กำลังอ่าน... ${pct}%`;
-                }
-            }
+        // Convert image to base64 for Google Cloud Vision
+        const base64 = await new Promise((resolve) => {
+            const r2 = new FileReader();
+            r2.onload = () => resolve(r2.result.split(',')[1]);
+            r2.readAsDataURL(file);
         });
+
+        document.getElementById('ocrBar').style.width = '50%';
+        document.getElementById('ocrText').textContent = 'กำลังอ่าน...';
+
+        const resp = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${VISION_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                requests: [{
+                    image: { content: base64 },
+                    features: [{ type: 'TEXT_DETECTION' }],
+                    imageContext: { languageHints: ['th', 'en'] }
+                }]
+            })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const ocrText = data.responses?.[0]?.fullTextAnnotation?.text || '';
         document.getElementById('ocrBar').style.width = '100%';
         document.getElementById('ocrText').textContent = 'เสร็จแล้ว!';
 
-        const extracted = parseLabel(result.data.text);
+        const extracted = parseLabel(ocrText);
         setTimeout(() => {
             closeScanModal();
             openAddModal();
@@ -910,37 +926,64 @@ document.getElementById('photoLib').addEventListener('change', handlePhoto);
 
 function parseLabel(text) {
     const r = { tracking:'', name:'', phone:'', address:'', carrier:'' };
+    console.log('OCR raw text:', text);
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const full = lines.join(' ');
 
-    if (/SPX/i.test(full)) r.carrier = 'SPX';
-    else if (/KEX/i.test(full)) r.carrier = 'KEX';
+    // ─── Carrier ───
+    if (/KEX/i.test(full)) r.carrier = 'KEX';
+    else if (/SPX/i.test(full)) r.carrier = 'SPX';
     else if (/J\s*[&]\s*T/i.test(full)) r.carrier = 'J&T';
 
-    const spx = full.match(/TH\d{2}[A-Z0-9]{8,}/i);
-    if (spx) { r.tracking = spx[0]; r.carrier = r.carrier || 'SPX'; }
+    // ─── Tracking ───
     const kex = full.match(/TREE\d{9,}/i);
     if (kex) { r.tracking = kex[0]; r.carrier = r.carrier || 'KEX'; }
+    const spx = full.match(/TH\d{2}[A-Z0-9]{8,}/i);
+    if (spx) { r.tracking = spx[0]; r.carrier = r.carrier || 'SPX'; }
     const jt = full.match(/86\d{10,}/);
     if (jt) { r.tracking = jt[0]; r.carrier = r.carrier || 'J&T'; }
     if (!r.tracking) { const g = full.match(/[A-Z]{2,4}\d{9,}/i); if (g) r.tracking = g[0]; }
 
+    // ─── Phone (exclude sender 0813721504) ───
     const phones = full.match(/0[1-9]\d[\s-]?\d{3,4}[\s-]?\d{4}/g);
     if (phones) {
         r.phone = (phones.find(p => p.replace(/[\s-]/g,'') !== '0813721504') || '').replace(/[\s-]/g,'');
     }
 
-    for (const pat of [/ผู้รับ\s*[:\s]*(.+?)(?:\[|\(|$)/m, /คุณ\s*(.+?)(?:\s*\[|\s*\(|\s*\d{2,}|$)/m]) {
-        const m = full.match(pat);
-        if (m?.[1]) { r.name = m[1].trim().substring(0, 50); break; }
+    // ─── Name & Address: find ผู้รับ section ───
+    const recipientIdx = lines.findIndex(l => /ผู้รับ/.test(l));
+    if (recipientIdx >= 0) {
+        // Extract name from ผู้รับ line
+        const nameMatch = lines[recipientIdx].match(/ผู้รับ\s*(.+)/);
+        if (nameMatch?.[1]) {
+            r.name = nameMatch[1].replace(/\[.*?\]/g, '').replace(/\(.*?\)/g, '').trim().substring(0, 50);
+        }
+        // Collect address lines after ผู้รับ until we hit a stop keyword
+        const addrLines = [];
+        for (let i = recipientIdx + 1; i < lines.length; i++) {
+            const l = lines[i];
+            if (/NO COD|COD|น้ำหนัก|ขนาด|เวลาพิมพ์|ลายเซ็น|B\d+\*/.test(l)) break;
+            const clean = l.replace(/\[.*?\]/g, '').trim();
+            if (clean) addrLines.push(clean);
+            if (/\d{5}/.test(l)) break; // stop after postal code
+        }
+        if (addrLines.length) r.address = addrLines.join(' ');
     }
 
-    const postal = full.match(/(\d{4,}[\/\d]*\s*.{10,}?\s*\d{5})/);
-    if (postal) r.address = postal[1].trim();
+    // ─── Fallback name: try คุณ or Khun ───
+    if (!r.name) {
+        for (const pat of [/คุณ\s*(.+?)(?:\s*\[|\s*\(|\s{2,}|$)/m, /Khun\s+(.+?)(?:\s*\[|\s*\(|\s{2,}|$)/im]) {
+            const m = full.match(pat);
+            if (m?.[1]) { r.name = m[1].trim().substring(0, 50); break; }
+        }
+    }
+
+    // ─── Fallback address ───
     if (!r.address) {
-        const al = lines.filter(l => /\d{5}/.test(l) || /ม\.|ซ\.|ถ\.|เขต|แขวง|ตำบล|อำเภอ/.test(l));
+        const al = lines.filter(l => /\d{5}/.test(l) || /ม\.|ซ\.|ถ\.|ถนน|เขต|แขวง|ตำบล|อำเภอ|เมือง|จังหวัด/.test(l));
         if (al.length) r.address = al.join(' ');
     }
+
     return r;
 }
 
