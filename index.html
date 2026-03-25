@@ -647,7 +647,18 @@ const initialData = [
 // ─── Data ───
 function loadPackages() {
     const s = localStorage.getItem('seaglassy_packages_v2');
-    if (s) return JSON.parse(s);
+    if (s) {
+        const stored = JSON.parse(s);
+        // Merge photo field from initialData into stored entries that are missing it
+        const photoMap = {};
+        initialData.forEach(d => { if (d.photo) photoMap[d.id] = d.photo; });
+        let updated = false;
+        stored.forEach(p => {
+            if (!p.photo && photoMap[p.id]) { p.photo = photoMap[p.id]; updated = true; }
+        });
+        if (updated) localStorage.setItem('seaglassy_packages_v2', JSON.stringify(stored));
+        return stored;
+    }
     localStorage.setItem('seaglassy_packages_v2', JSON.stringify(initialData));
     return [...initialData];
 }
