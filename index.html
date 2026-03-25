@@ -514,9 +514,6 @@
     <button class="nav-item" data-filter="pending" onclick="navFilter(this, 'pending')">
         <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>รอส่ง
     </button>
-    <button class="nav-item" onclick="openScanModal()">
-        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>สแกน
-    </button>
 </div>
 
 <!-- Scan Modal -->
@@ -611,6 +608,7 @@
 <script>
 // ─── Config ───
 const TRACK_BASE = 'https://victorbart01.github.io/Seaglassy-mail/track.html';
+let pendingPhoto = ''; // stores base64 photo from scan until package is saved
 
 // ─── Initial data ───
 const initialData = [
@@ -781,7 +779,8 @@ function callPhone(e, phone) {
 }
 
 // ─── Add / Edit ───
-function openAddModal() {
+function openAddModal(keepPhoto) {
+    if (!keepPhoto) pendingPhoto = '';
     document.getElementById('formTitle').textContent = 'เพิ่มพัสดุใหม่';
     document.getElementById('editId').value = '';
     document.getElementById('formDate').value = new Date().toISOString().split('T')[0];
@@ -830,13 +829,18 @@ function savePackage() {
 
     if (eid) {
         const i = packages.findIndex(p => p.id == eid);
-        if (i !== -1) packages[i] = { ...packages[i], ...pkg };
+        if (i !== -1) {
+            if (pendingPhoto) packages[i].photo = pendingPhoto;
+            packages[i] = { ...packages[i], ...pkg, photo: pendingPhoto || packages[i].photo };
+        }
         showToast('แก้ไขเรียบร้อย ✓');
     } else {
         pkg.id = Date.now();
+        if (pendingPhoto) pkg.photo = pendingPhoto;
         packages.unshift(pkg);
         showToast('เพิ่มพัสดุเรียบร้อย ✓');
     }
+    pendingPhoto = '';
     saveData(packages); closeFormModal(); render();
 }
 
@@ -862,12 +866,31 @@ async function handlePhoto(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = ev => {
-        document.getElementById('previewImg').src = ev.target.result;
-        document.getElementById('scanPreview').style.display = 'block';
-    };
-    reader.readAsDataURL(file);
+    // Read image as data URL for preview + save as thumbnail
+    const dataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = ev => resolve(ev.target.result);
+        reader.readAsDataURL(file);
+    });
+
+    // Resize to thumbnail to save localStorage space
+    const thumb = await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const c = document.createElement('canvas');
+            const max = 200;
+            const scale = Math.min(max / img.width, max / img.height, 1);
+            c.width = img.width * scale;
+            c.height = img.height * scale;
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = dataUrl;
+    });
+    pendingPhoto = thumb;
+
+    document.getElementById('previewImg').src = dataUrl;
+    document.getElementById('scanPreview').style.display = 'block';
 
     document.getElementById('ocrLoader').style.display = 'block';
     document.getElementById('ocrText').textContent = 'กำลังเตรียมอ่าน...';
@@ -905,7 +928,7 @@ async function handlePhoto(e) {
         const extracted = parseLabel(ocrText);
         setTimeout(() => {
             closeScanModal();
-            openAddModal();
+            openAddModal(true);
             if (extracted.tracking) document.getElementById('formTracking').value = extracted.tracking;
             if (extracted.name) document.getElementById('formName').value = extracted.name;
             if (extracted.phone) document.getElementById('formPhone').value = extracted.phone;
@@ -950,38 +973,65 @@ function parseLabel(text) {
         r.phone = (phones.find(p => p.replace(/[\s-]/g,'') !== '0813721504') || '').replace(/[\s-]/g,'');
     }
 
-    // ─── Name & Address: find ผู้รับ section ───
-    const recipientIdx = lines.findIndex(l => /ผู้รับ/.test(l));
-    if (recipientIdx >= 0) {
-        // Extract name from ผู้รับ line
-        const nameMatch = lines[recipientIdx].match(/ผู้รับ\s*(.+)/);
-        if (nameMatch?.[1]) {
-            r.name = nameMatch[1].replace(/\[.*?\]/g, '').replace(/\(.*?\)/g, '').trim().substring(0, 50);
+    // ─── Find carrier label section: prefer (TO), then last ผู้รับ ───
+    // The handwritten label also has ผู้รับ, so prioritize (TO) marker from carrier
+    let toIdx = -1;
+    // First: look for line with (TO)
+    for (let i = 0; i < lines.length; i++) {
+        if (/\(TO\)/.test(lines[i])) { toIdx = i; break; }
+    }
+    // Fallback: use last ผู้รับ (carrier label comes after handwritten one)
+    if (toIdx < 0) {
+        for (let i = lines.length - 1; i >= 0; i--) {
+            if (/ผู้รับ/.test(lines[i])) { toIdx = i; break; }
         }
-        // Collect address lines after ผู้รับ until we hit a stop keyword
+    }
+    // Find end: next (FROM)/ผู้ส่ง AFTER toIdx, or line with Thai postal code (5 digits not inside longer number)
+    let endIdx = lines.length;
+    for (let i = toIdx + 1; i < lines.length; i++) {
+        if (/\(FROM\)|ผู้ส่ง/.test(lines[i])) { endIdx = i; break; }
+        if (/(?<!\d)\d{5}(?!\d)/.test(lines[i])) { endIdx = i + 1; break; } // postal code = exactly 5 digits
+    }
+    let recipientLines = toIdx >= 0 ? lines.slice(toIdx, endIdx) : [];
+    const recipientText = recipientLines.join(' ');
+
+    // Helper: clean junk from a line
+    const cleanField = (s) => s
+        .replace(/TH\d{2}[A-Z0-9]{8,}/gi, '')
+        .replace(/TREE\d{9,}/gi, '')
+        .replace(/86\d{10,}/g, '')
+        .replace(/0[1-9]\d[\s-]?\d{3,4}[\s-]?\d{4}/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/\(.*?\)/g, '')
+        .replace(/DROP\s*OFF/gi, '')
+        .replace(/NO\s*COD/gi, '')
+        .replace(/SPX|KEX|J\s*&\s*T|INATA|EXPRESS|AEGA/gi, '')
+        .replace(/YO\s*\d+.*/gi, '')
+        .replace(/[A-Z]\d{2,}-?/g, '')
+        .replace(/HOU\.\d+/gi, '')
+        .replace(/HBSUE|NOTE|DOOC|APTUM/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    // ─── Name: ONLY from carrier label (TO/ผู้รับ section) ───
+    if (recipientLines.length) {
+        const kunMatch = recipientText.match(/คุณ\s*([\u0E00-\u0E7F]+(?:\s+[\u0E00-\u0E7F]+)*)/);
+        const khunMatch = recipientText.match(/Khun\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
+        const nameFromRecipient = recipientLines[0].match(/(?:\(TO\)|ผู้รับ)\s*(?:คุณ\s*)?([\u0E00-\u0E7F]+(?:\s+[\u0E00-\u0E7F]+)*)/);
+        r.name = (kunMatch?.[1] || khunMatch?.[1] || nameFromRecipient?.[1] || '').trim().substring(0, 50);
+    }
+
+    // ─── Address: ONLY from carrier label, keep only Thai address content ───
+    if (recipientLines.length > 1) {
         const addrLines = [];
-        for (let i = recipientIdx + 1; i < lines.length; i++) {
-            const l = lines[i];
-            if (/NO COD|COD|น้ำหนัก|ขนาด|เวลาพิมพ์|ลายเซ็น|B\d+\*/.test(l)) break;
-            const clean = l.replace(/\[.*?\]/g, '').trim();
-            if (clean) addrLines.push(clean);
-            if (/\d{5}/.test(l)) break; // stop after postal code
+        for (let i = 1; i < recipientLines.length; i++) {
+            const clean = cleanField(recipientLines[i]);
+            // Keep only lines with Thai chars or address-like numbers (xx/xxx)
+            if (clean && (/[\u0E00-\u0E7F]/.test(clean) || /\d+\/\d+/.test(clean))) {
+                addrLines.push(clean);
+            }
         }
         if (addrLines.length) r.address = addrLines.join(' ');
-    }
-
-    // ─── Fallback name: try คุณ or Khun ───
-    if (!r.name) {
-        for (const pat of [/คุณ\s*(.+?)(?:\s*\[|\s*\(|\s{2,}|$)/m, /Khun\s+(.+?)(?:\s*\[|\s*\(|\s{2,}|$)/im]) {
-            const m = full.match(pat);
-            if (m?.[1]) { r.name = m[1].trim().substring(0, 50); break; }
-        }
-    }
-
-    // ─── Fallback address ───
-    if (!r.address) {
-        const al = lines.filter(l => /\d{5}/.test(l) || /ม\.|ซ\.|ถ\.|ถนน|เขต|แขวง|ตำบล|อำเภอ|เมือง|จังหวัด/.test(l));
-        if (al.length) r.address = al.join(' ');
     }
 
     return r;
