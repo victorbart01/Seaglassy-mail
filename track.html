@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Seaglassy - ติดตามพัสดุ</title>
+    <meta property="og:title" content="Seaglassy - ติดตามพัสดุของคุณ">
+    <meta property="og:description" content="ติดตามสถานะพัสดุเครื่องประดับ Sea Glass ของคุณ">
+    <meta property="og:type" content="website">
+    <style>
+        :root {
+            --yellow: #ffc800;
+            --yellow-dark: #d48e00;
+            --bg: #fafaf7;
+            --card: #ffffff;
+            --text: #1a1a1a;
+            --text2: #6b7280;
+            --text3: #9ca3af;
+            --border: #e5e5e0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 0 16px;
+            padding-top: env(safe-area-inset-top, 0px);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page {
+            width: 100%; max-width: 440px;
+            padding: 32px 0 48px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 32px;
+        }
+        .brand-icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: linear-gradient(135deg, #ffc800, #f5a623);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .brand-icon svg { width: 22px; height: 22px; }
+        .brand h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.3px; }
+
+        .greeting {
+            font-size: 18px; color: var(--text2); text-align: center;
+            margin-bottom: 24px; line-height: 1.5;
+        }
+        .greeting strong { color: var(--text); }
+
+        .track-card {
+            width: 100%; background: var(--card);
+            border-radius: 20px; border: 1px solid var(--border);
+            padding: 24px; margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .status-pill {
+            display: inline-block; padding: 6px 16px; border-radius: 20px;
+            font-size: 13px; font-weight: 700;
+            background: #dcfce7; color: #166534;
+            margin-bottom: 16px;
+        }
+
+        .carrier-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 8px;
+            font-size: 12px; font-weight: 700; margin-bottom: 8px;
+        }
+        .c-spx { background: #fef3c7; color: #92400e; }
+        .c-kex { background: #dbeafe; color: #1e40af; }
+        .c-jt { background: #fce7f3; color: #9d174d; }
+        .c-other { background: #f3f4f6; color: #4b5563; }
+
+        .tracking-number {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 20px; font-weight: 700; color: var(--text);
+            letter-spacing: 1px; margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .carrier-name {
+            font-size: 13px; color: var(--text3); margin-bottom: 20px;
+        }
+
+        .track-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 16px; border-radius: 14px;
+            background: var(--yellow); color: #1a1a1a;
+            border: none; font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: all 0.15s;
+            text-decoration: none;
+        }
+        .track-btn:active { transform: scale(0.98); background: var(--yellow-dark); }
+        .track-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .copy-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 14px; border-radius: 14px;
+            background: var(--card); color: var(--text2);
+            border: 1.5px solid var(--border);
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s;
+            margin-top: 10px;
+        }
+        .copy-btn:active { transform: scale(0.98); background: var(--bg); }
+        .copy-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .footer {
+            margin-top: 32px; text-align: center;
+            font-size: 12px; color: var(--text3); line-height: 1.5;
+        }
+
+        .error-state {
+            text-align: center; padding: 48px 20px; color: var(--text3);
+        }
+        .error-state svg { margin-bottom: 16px; }
+        .error-state p { font-size: 15px; line-height: 1.6; }
+
+        .toast {
+            position: fixed; top: 20px; left: 50%;
+            transform: translateX(-50%) translateY(-80px);
+            background: var(--text); color: white;
+            padding: 12px 24px; border-radius: 14px;
+            font-size: 14px; font-weight: 600;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            opacity: 0; transition: all 0.3s; z-index: 100;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="page" id="page"></div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const params = new URLSearchParams(window.location.search);
+    const tracking = params.get('t');
+    const carrier = params.get('c') || '';
+    const name = params.get('n') || '';
+    const page = document.getElementById('page');
+
+    const carrierNames = { SPX: 'SPX Express', KEX: 'KEX Express', JT: 'J&T Express' };
+    const carrierClass = carrier === 'SPX' ? 'c-spx' : carrier === 'KEX' ? 'c-kex' : carrier === 'JT' ? 'c-jt' : 'c-other';
+    const carrierDisplay = carrierNames[carrier] || carrier || '';
+
+    const brandHTML = `
+        <div class="brand">
+            <div class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16v-2"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg></div>
+            <h1>Seaglassy</h1>
+        </div>`;
+
+    if (!tracking) {
+        page.innerHTML = `
+            ${brandHTML}
+            <div class="error-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <p>ไม่พบข้อมูลพัสดุ<br>กรุณาตรวจสอบลิงก์อีกครั้ง</p>
+            </div>`;
+    } else {
+        const trackUrl = `https://parcelsapp.com/en/tracking/${encodeURIComponent(tracking)}`;
+        const greeting = name ? `สวัสดีค่ะ คุณ<strong>${decodeURIComponent(name)}</strong>` : 'สวัสดีค่ะ';
+
+        page.innerHTML = `
+            ${brandHTML}
+            <div class="greeting">${greeting}<br>พัสดุของคุณส่งแล้วนะคะ</div>
+            <div class="track-card">
+                <div class="status-pill">ส่งแล้ว</div><br>
+                ${carrierDisplay ? `<span class="carrier-badge ${carrierClass}">${carrierDisplay}</span>` : ''}
+                <div class="tracking-number">${tracking}</div>
+                ${carrierDisplay ? `<div class="carrier-name">จัดส่งโดย ${carrierDisplay}</div>` : '<div class="carrier-name" style="margin-bottom:20px"></div>'}
+                <a href="${trackUrl}" target="_blank" rel="noopener" class="track-btn">
+                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    ดูสถานะพัสดุ
+                </a>
+                <button class="copy-btn" onclick="copyTrack()">
+                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    คัดลอกเลขพัสดุ
+                </button>
+            </div>
+            <div class="footer">ขอบคุณที่อุดหนุน Seaglassy นะคะ 💛</div>`;
+    }
+
+    function copyTrack() {
+        navigator.clipboard.writeText(tracking).then(() => {
+            const t = document.getElementById('toast');
+            t.textContent = 'คัดลอกเลขพัสดุแล้ว ✓';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        });
+    }
+    </script>
+</body>
+</html>

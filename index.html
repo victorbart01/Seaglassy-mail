@@ -572,6 +572,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ─── Config ───
+const TRACK_BASE = 'https://victorbart01.github.io/Seaglassy-mail/track.html';
+
 // ─── Initial data ───
 const initialData = [
     { id:1, date:"2026-03-24", carrier:"SPX", tracking:"TH06424B198243", name:"สุภัทพล", phone:"", address:"333/381 หมู่บ้านกิตตินคร ม.5 ซ.บาลพลี พัฒนา ก.เทพารักษ์ ต.บางเพรียง อ.บางบ่อ สมุทรปราการ 10560", status:"sent", notes:"IMG_9941" },
@@ -666,7 +669,7 @@ function render() {
                 ${p.phone ? `<div class="detail-row"><svg class="detail-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>${p.phone}</span></div>` : ''}
             </div>
             <div class="pkg-actions">
-                ${p.tracking ? `<button class="action-btn action-share" onclick="copyTrk(event,'${esc(p.tracking)}')"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>คัดลอกเลขพัสดุ</button>` : ''}
+                ${p.tracking ? `<button class="action-btn action-share" onclick="copyTrkLink(event,${p.id})"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>คัดลอกลิงก์ส่งลูกค้า</button>` : ''}
                 ${p.tracking ? `<button class="action-btn" onclick="trackPkg(event,'${esc(p.tracking)}')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>ติดตาม</button>` : ''}
                 ${p.phone ? `<button class="action-btn" onclick="callPhone(event,'${p.phone}')"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.11 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.574 2.81.7A2 2 0 0 1 22 16.92z"/></svg>โทร</button>` : ''}
                 <button class="action-btn" onclick="editPkg(event,${p.id})"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>แก้ไข</button>
@@ -689,6 +692,15 @@ function toggleCard(id, e) {
     if (e.target.closest('.action-btn')) return;
     expandedId = expandedId === id ? null : id;
     render();
+}
+
+function copyTrkLink(e, id) {
+    e.stopPropagation();
+    const p = packages.find(x => x.id === id);
+    if (!p) return;
+    const c = p.carrier === 'J&T' ? 'JT' : p.carrier;
+    const url = `${TRACK_BASE}?t=${encodeURIComponent(p.tracking)}&c=${encodeURIComponent(c)}&n=${encodeURIComponent((p.name||'').split(' ')[0])}`;
+    navigator.clipboard.writeText(url).then(() => showToast('คัดลอกลิงก์แล้ว วางใน chat ได้เลย ✓'));
 }
 
 function trackPkg(e, tracking) {
