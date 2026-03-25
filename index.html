@@ -184,8 +184,11 @@
         .pkg-tracking {
             font-family: 'SF Mono', 'Menlo', monospace;
             font-size: 13px; font-weight: 600; color: #b47d00;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.5px; cursor: pointer;
+            padding: 2px 6px; border-radius: 6px;
+            transition: background 0.15s;
         }
+        .pkg-tracking:active { background: var(--orange-bg); }
 
         .pkg-details {
             font-size: 13px; color: var(--text2); line-height: 1.4;
@@ -697,7 +700,7 @@ function render() {
                 <div class="pkg-card-info">
                     <div class="pkg-tracking-row">
                         <span class="pkg-carrier ${cc}">${p.carrier}</span>
-                        <span class="pkg-tracking">${hl(p.tracking || '-')}</span>
+                        <span class="pkg-tracking" onclick="copyTrk(event,'${esc(p.tracking || '')}')">${hl(p.tracking || '-')}</span>
                         ${df ? `<span style="margin-left:auto;font-size:12px;color:var(--text3);">${df}</span>` : ''}
                     </div>
                     <div class="pkg-details">
